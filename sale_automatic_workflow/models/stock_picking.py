@@ -29,8 +29,6 @@ class StockPicking(models.Model):
                     == -1
                 ):
                     move.quantity_done = move.product_qty
-                    move.state = 'assigned'
-            self.env["stock.immediate.transfer"].create(
-                {"pick_ids": [(4, picking.id)]}
-            ).process()
+            picking.with_context(
+                skip_overprocessed_check=True).button_validate()
         return True

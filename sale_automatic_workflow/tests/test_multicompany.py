@@ -109,16 +109,20 @@ class TestMultiCompany(TransactionCase):
         self.auto_wkf = self.env.ref(
             'sale_automatic_workflow.automatic_validation'
         )
+        self.auto_wkf.validate_picking = True
         self.env.user.company_id = self.env.ref('base.main_company')
 
     def create_auto_wkf_order(self, company, customer, product, qty):
         SaleOrder = self.env['sale.order']
+        warehouse = self.env['stock.warehouse'].search(
+            [('company_id', '=', company.id)], limit=1)
 
         self.product_uom_unit = self.env.ref('uom.product_uom_unit')
 
         order = SaleOrder.create({
             'partner_id': customer.id,
             'company_id': company.id,
+            'warehouse_id': warehouse.id,
             'workflow_process_id': self.auto_wkf.id,
             'order_line': [(0, 0, {
                 'name': product.name,
@@ -128,6 +132,7 @@ class TestMultiCompany(TransactionCase):
                 'product_uom': self.product_uom_unit.id,
             })]
         })
+        order._onchange_workflow_process_id()
         return order
 
     def test_sale_order_multicompany(self):
@@ -153,6 +158,12 @@ class TestMultiCompany(TransactionCase):
         self.assertEquals(order_fr_daughter.state, 'draft')
 
         self.env['automatic.workflow.job'].run()
+        self.assertTrue(order_fr.picking_ids)
+        self.assertTrue(order_ch.picking_ids)
+        self.assertTrue(order_be.picking_ids)
+        self.assertEqual(order_fr.picking_ids.state, 'done')
+        self.assertEqual(order_ch.picking_ids.state, 'done')
+        self.assertEqual(order_be.picking_ids.state, 'done')
         invoice_fr = order_fr.invoice_ids
         invoice_ch = order_ch.invoice_ids
         invoice_be = order_be.invoice_ids

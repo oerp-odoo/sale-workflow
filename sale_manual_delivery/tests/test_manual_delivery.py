@@ -97,8 +97,8 @@ class TestSaleStock(TestSale):
         # deliver completely
         pick = self.so.picking_ids
         pick.force_assign()
-        pick.pack_operation_product_ids.write({"qty_done": 5})
-        pick.do_new_transfer()
+        pick.move_line_ids.write({"qty_done": 5})
+        pick.do_transfer()
 
         # Check quantity delivered
         del_qty = sum(sol.qty_delivered for sol in self.so.order_line)
@@ -149,8 +149,8 @@ class TestSaleStock(TestSale):
         # deliver completely
         pick = self.so.picking_ids
         pick.force_assign()
-        pick.pack_operation_product_ids.write({"qty_done": 5})
-        pick.do_new_transfer()
+        pick.move_line_ids.write({"qty_done": 5})
+        pick.do_transfer()
 
         # Check quantity delivered
         del_qty = sum(sol.qty_delivered for sol in self.so.order_line)
@@ -225,8 +225,8 @@ class TestSaleStock(TestSale):
         # deliver completely
         pick = self.so.picking_ids
         pick.force_assign()
-        pick.pack_operation_product_ids.write({"qty_done": 2})
-        pick.do_new_transfer()
+        pick.move_line_ids.write({"qty_done": 2})
+        pick.do_transfer()
 
         # Check quantity delivered
         del_qty = sum(sol.qty_delivered for sol in self.so.order_line)
@@ -268,8 +268,8 @@ class TestSaleStock(TestSale):
         for pick in self.so.picking_ids:
             if pick.state != "done":
                 pick.force_assign()
-                pick.pack_operation_product_ids.write({"qty_done": 3})
-                pick.do_new_transfer()
+                pick.move_line_ids.write({"qty_done": 3})
+                pick.do_transfer()
 
         # Check quantity delivered
         del_qty = sum(sol.qty_delivered for sol in self.so.order_line)

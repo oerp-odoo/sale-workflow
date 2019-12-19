@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
     <record id="sot_sale_order_type_form_view" model="ir.ui.view">
         <field name="name">sale.order.type.form.view</field>
         <field name="model">sale.order.type</field>
@@ -108,7 +108,10 @@
         <field name="act_window_id" ref="sot_sale_order_type_action"/>
     </record>
 
-    <menuitem id="sot_sale_order_type_menu" parent="sale.menu_sales_config"
-              action="sot_sale_order_type_action" sequence="20"/>
+    <menuitem
+        id="sot_sale_order_type_menu"
+        parent="sale.menu_sales_config"
+        action="sot_sale_order_type_action"
+        sequence="20"/>
 
 </odoo>

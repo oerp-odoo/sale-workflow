@@ -70,6 +70,11 @@ class ManualDelivery(models.TransientModel):
     partner_id = fields.Many2one(
         "res.partner", domain=PARTNER_DOMAIN, string="Delivery Address")
     commercial_partner_id = fields.Many2one("res.partner")
+    origin = fields.Char(
+        string="Source Document",
+        help="""Warning: If set, Source Document will be the same
+                for all resulting pickings."""
+    )
 
     @api.multi
     def record_picking(self):
@@ -130,6 +135,6 @@ class ManualDelivery(models.TransientModel):
                         wiz_line.order_line_id.product_uom,
                         so_id.partner_shipping_id.property_stock_customer,
                         wiz_line.order_line_id.name,
-                        so_id.name,
+                        self.origin or so_id.name,
                         vals,
                     )

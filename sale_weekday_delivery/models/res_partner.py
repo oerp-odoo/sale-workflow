@@ -21,7 +21,7 @@ class ResPartner(models.Model):
 
     _inherit = "res.partner"
 
-    delivery_schedule = fields.Selection(
+    delivery_schedule_preference = fields.Selection(
         [("direct", "As soon as possible"), ("fix_weekdays", "Fixed week days")],
         string="Delivery schedule preference",
         default="direct",
@@ -41,7 +41,7 @@ class ResPartner(models.Model):
     delivery_schedule_sunday = fields.Boolean(default=True, string="Sunday")
 
     @api.constrains(
-        "delivery_schedule",
+        "delivery_schedule_preference",
         "delivery_schedule_monday",
         "delivery_schedule_tuesday",
         "delivery_schedule_wednesday",
@@ -54,7 +54,7 @@ class ResPartner(models.Model):
         """Ensure at least one preferred day is defined"""
         days_fields = ["delivery_schedule_%s" % d.lower() for d in calendar.day_name]
         for partner in self:
-            if partner.delivery_schedule == "fix_weekdays" and not any(
+            if partner.delivery_schedule_preference == "fix_weekdays" and not any(
                 [partner[d] for d in days_fields]
             ):
                 raise ValidationError(
@@ -64,17 +64,23 @@ class ResPartner(models.Model):
                     )
                 )
 
-    def get_delivery_schedule_preferred_weekdays(self):
+    def get_delivery_schedule_preferred_weekdays(self, translate=False):
         """List preferred weekdays"""
         self.ensure_one()
-        if self.delivery_schedule == "direct":
-            return [d.lower() for d in calendar.day_name]
+        if self.delivery_schedule_preference == "direct":
+            res = [d.lower() for d in calendar.day_name]
         else:
-            return [
+            res = [
                 d.lower()
                 for d in calendar.day_name
                 if self["delivery_schedule_%s" % d.lower()]
             ]
+        if translate:
+            fields_tr = self.env['ir.translation'].get_field_string(
+                self._name
+            )
+            res = [fields_tr.get("delivery_schedule_%s" % day) for day in res]
+        return res
 
     def _next_delivery_schedule_preferred_date(self, date_time=None):
         """Returns next preferred date according to weekday preference"""
@@ -89,7 +95,7 @@ class ResPartner(models.Model):
         # Check if weekday is allowed
         if (
             date_weekday in preferred_weekdays
-            or self.delivery_schedule != 'fix_weekdays'
+            or self.delivery_schedule_preference != 'fix_weekdays'
         ):
             return date_time
         # Iterate over weekdays to find the next one being True

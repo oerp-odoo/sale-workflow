@@ -9,9 +9,9 @@
                 expr="//page[@name='sales_purchases']//group[@name='sale']"
                 position="inside"
             >
-                <field name="delivery_schedule" />
+                <field name="delivery_schedule_preference" />
                 <div
-                    attrs="{'invisible': [('delivery_schedule', '!=', 'fix_weekdays')]}"
+                    attrs="{'invisible': [('delivery_schedule_preference', '!=', 'fix_weekdays')]}"
                     colspan="2"
                     style="text-align: center;"
                 >

@@ -14,7 +14,7 @@ class SaleOrder(models.Model):
         "date_order",
         "order_line.state",
         "picking_policy",
-        "partner_shipping_id.delivery_schedule",
+        "partner_shipping_id.delivery_schedule_preference",
         "partner_shipping_id.delivery_schedule_monday",
         "partner_shipping_id.delivery_schedule_tuesday",
         "partner_shipping_id.delivery_schedule_wednesday",
@@ -35,7 +35,7 @@ class SaleOrder(models.Model):
             return res
         if (
             self.commitment_date
-            and self.partner_shipping_id.delivery_schedule == "fix_weekdays"
+            and self.partner_shipping_id.delivery_schedule_preference == "fix_weekdays"
         ):
             raw_commitment_date_weekday = self.commitment_date.weekday()
             commitment_date_weekday = WEEKDAY_MAPPING.get(
@@ -60,7 +60,10 @@ class SaleOrder(models.Model):
                                         "  * %s" % day
                                         for day
                                         in
-                                        ps.get_delivery_schedule_preferred_weekdays()]
+                                        ps.get_delivery_schedule_preferred_weekdays(
+                                            translate=True
+                                        )
+                                    ]
                                 ),
                             )
                         ),
@@ -75,10 +78,10 @@ class SaleOrderLine(models.Model):
     def _expected_date(self):
         """Postpone expected_date to next preferred weekday"""
         expected_date = super()._expected_date()
-        ops = self.order_id.partner_shipping_id
-        if ops.delivery_schedule == "direct":
+        partner = self.order_id.partner_shipping_id
+        if partner.delivery_schedule_preference == "direct":
             return expected_date
-        return ops._next_delivery_schedule_preferred_date(
+        return partner._next_delivery_schedule_preferred_date(
             expected_date
         )
 
@@ -86,7 +89,7 @@ class SaleOrderLine(models.Model):
         """Consider delivery_schedule in procurement"""
         res = super()._prepare_procurement_values(group_id=group_id)
         if (
-            self.order_id.partner_shipping_id.delivery_schedule != "fix_weekdays"
+            self.order_id.partner_shipping_id.delivery_schedule_preference != "fix_weekdays"
             # if a commitment_date is set we don't change the result as lead
             # time and delivery week days must have been considered
             or self.order_id.commitment_date

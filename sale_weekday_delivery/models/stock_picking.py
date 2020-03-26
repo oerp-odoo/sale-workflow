@@ -13,7 +13,7 @@ class StockPicking(models.Model):
         self.ensure_one()
         if (
             not self.partner_id or
-            self.partner_id.delivery_schedule != 'fix_weekdays' or
+            self.partner_id.delivery_schedule_preference != 'fix_weekdays' or
             self.picking_type_id.code != 'outgoing'
         ):
             return
@@ -38,7 +38,10 @@ class StockPicking(models.Model):
                                 [
                                     "  * %s" % day
                                     for day
-                                    in p.get_delivery_schedule_preferred_weekdays()]
+                                    in p.get_delivery_schedule_preferred_weekdays(
+                                        translate=True
+                                    )
+                                ]
                             ),
                         )
                     ),

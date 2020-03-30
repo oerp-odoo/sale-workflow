@@ -15,11 +15,11 @@ class TestSaleOrder(common.TransactionCase):
         self.sale_order_line_obj = self.env["sale.order.line"]
 
         self.partner = self.env["res.partner"].create(
-            {"name": "TEST SUPPLIER", "customer": True,}
+            {"name": "TEST SUPPLIER", "customer_rank": 1}
         )
-        self.payment_term = self.env.ref("account.account_payment_term_net")
+        self.payment_term = self.env.ref("account.account_payment_term_30days")
         self.sale_pricelist = self.env["product.pricelist"].create(
-            {"name": "Test Pricelist", "currency_id": self.env.ref("base.USD").id,}
+            {"name": "Test Pricelist", "currency_id": self.env.ref("base.USD").id}
         )
 
         self.product = self.env["product.product"].create(
@@ -124,7 +124,7 @@ class TestSaleOrder(common.TransactionCase):
         blanket_order = self.create_blanket_order_01()
         blanket_order.sudo().action_confirm()
         bo_lines = self.blanket_order_line_obj.search(
-            [("order_id", "=", blanket_order.id),]
+            [("order_id", "=", blanket_order.id)]
         )
         self.assertEqual(len(bo_lines), 2)
 
@@ -159,7 +159,7 @@ class TestSaleOrder(common.TransactionCase):
         blanket_order = self.create_blanket_order_02()
         blanket_order.sudo().action_confirm()
         bo_lines = self.blanket_order_line_obj.search(
-            [("order_id", "=", blanket_order.id),]
+            [("order_id", "=", blanket_order.id)]
         )
         self.assertEqual(len(bo_lines), 2)
 

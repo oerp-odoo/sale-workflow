@@ -8,10 +8,6 @@ class SaleOrder(models.Model):
     _inherit = "sale.order"
 
     @api.depends(
-        "order_line.customer_lead",
-        "date_order",
-        "order_line.state",
-        "picking_policy",
         "partner_shipping_id.delivery_time_preference",
         "partner_shipping_id.delivery_time_window_ids",
         "partner_shipping_id.delivery_time_window_ids.start",
@@ -45,6 +41,7 @@ class SaleOrder(models.Model):
                             "partner is set to prefer deliveries on following "
                             "time windows:\n%s"
                             % (
+                                # TODO handle date format + tz + translation
                                 self.commitment_date,
                                 '\n'.join(
                                     [
@@ -70,7 +67,7 @@ class SaleOrderLine(models.Model):
         if partner.delivery_time_preference == "direct":
             return expected_date
         return partner.next_delivery_window_start_datetime(
-            expected_date
+            from_date=expected_date
         )
 
     def _prepare_procurement_values(self, group_id=False):
@@ -88,18 +85,13 @@ class SaleOrderLine(models.Model):
         date_planned = fields.Datetime.to_datetime(res.get("date_planned"))
         ops = self.order_id.partner_shipping_id
         next_preferred_date = ops.next_delivery_window_start_datetime(
-            date_planned
+            from_date=date_planned
         )
         if next_preferred_date != date_planned:
-            res["date_planned"] = fields.Datetime.to_string(next_preferred_date)
+            res["date_planned"] = next_preferred_date
         return res
 
     @api.depends(
-        "product_id",
-        "customer_lead",
-        "product_uom_qty",
-        "order_id.warehouse_id",
-        "order_id.commitment_date",
         "order_id.expected_date"
     )
     def _compute_qty_at_date(self):

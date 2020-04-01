@@ -23,10 +23,10 @@ class TestSaleWeekdayDelivery(SavepointCase):
                 "delivery_time_window_ids": [(0, 0, {
                     'start': 0.0,
                     'end': 23.59,
-                    'time_weekday_ids': [
+                    'weekday_ids': [
                         (6, 0, [
                             cls.env.ref('base_time_window.time_weekday_thursday').id,
-                            cls.env.ref('base_time_window.time_weekday_saturday')
+                            cls.env.ref('base_time_window.time_weekday_saturday').id
                         ])
                      ]
                 })]
@@ -54,6 +54,8 @@ class TestSaleWeekdayDelivery(SavepointCase):
                 ],
             }
         )
+        # Play onchange manually to ensure customer_lead is set on the line
+        order.order_line._onchange_product_id_set_customer_lead()
         return order
 
     # TODO check overlap and empty
@@ -76,8 +78,6 @@ class TestSaleWeekdayDelivery(SavepointCase):
         #  is saturday 2020-03-28
         self.product.sale_delay = 3
         order_2 = self._create_order()
-        # Play onchange manually to ensure customer_lead is set on the line
-        order_2.order_line._onchange_product_id_set_customer_lead()
         self.assertEqual(
             order_2.expected_date, fields.Datetime.to_datetime("2020-03-28")
         )

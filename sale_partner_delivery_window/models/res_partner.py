@@ -32,5 +32,5 @@ class ResPartner(models.Model):
                 # As soon as now in in a window, return the start datetime
                 if start_time <= from_date.time() <= win.get_end_time():
                     return from_date.replace(
-                        hour=start_time.hour, minute=start_time.minute
+                        hour=start_time.hour, minute=start_time.minute, second=0
                     ) + timedelta(days=i)

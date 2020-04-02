@@ -1,6 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
 from odoo import _, api, fields, models
+from odoo.addons.partner_tz.tools import tz_utils
 
 
 class SaleOrder(models.Model):
@@ -30,6 +31,10 @@ class SaleOrder(models.Model):
         ):
             ps = self.partner_shipping_id
             if not ps.is_in_delivery_window(self.commitment_date):
+                user_tz = self.env.user.tz
+                tz_commitment_date = tz_utils.utc_to_tz_naive_datetime(
+                    user_tz, self.commitment_date
+                )
                 return {
                     "warning": {
                         "title": _(
@@ -41,11 +46,11 @@ class SaleOrder(models.Model):
                             "partner is set to prefer deliveries on following "
                             "time windows:\n%s"
                             % (
-                                # TODO handle date format + tz + translation
-                                self.commitment_date,
+                                # TODO handle date format
+                                tz_commitment_date,
                                 '\n'.join(
                                     [
-                                        "  * %s" % w.display_name
+                                        "  * %s" % w.tz_display_name
                                         for w
                                         in ps.get_delivery_windows().get(ps.id)
                                     ]

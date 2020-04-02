@@ -26,7 +26,7 @@ class SaleOrder(models.Model):
             return res
         if (
             self.commitment_date
-            and self.partner_shipping_id.delivery_time_preference == "fix_weekdays"
+            and self.partner_shipping_id.delivery_time_preference == "time_windows"
         ):
             ps = self.partner_shipping_id
             if not ps.is_in_delivery_window(self.commitment_date):
@@ -64,7 +64,7 @@ class SaleOrderLine(models.Model):
         """Postpone expected_date to next preferred weekday"""
         expected_date = super()._expected_date()
         partner = self.order_id.partner_shipping_id
-        if partner.delivery_time_preference == "direct":
+        if partner.delivery_time_preference == "anytime":
             return expected_date
         return partner.next_delivery_window_start_datetime(
             from_date=expected_date
@@ -74,7 +74,7 @@ class SaleOrderLine(models.Model):
         """Consider delivery_schedule in procurement"""
         res = super()._prepare_procurement_values(group_id=group_id)
         if (
-            self.order_id.partner_shipping_id.delivery_time_preference != "fix_weekdays"
+            self.order_id.partner_shipping_id.delivery_time_preference != "time_windows"
             # if a commitment_date is set we don't change the result as lead
             # time and delivery week days must have been considered
             or self.order_id.commitment_date

@@ -13,13 +13,13 @@ class TestSaleWeekdayDelivery(SavepointCase):
         super().setUpClass()
         cls.env = cls.env(context=dict(cls.env.context, tracking_disable=True))
         cls.customer = cls.env["res.partner"].create(
-            {"name": "ACME", "delivery_time_preference": "direct"}
+            {"name": "ACME", "delivery_time_preference": "anytime"}
         )
         cls.customer_shipping = cls.env["res.partner"].create(
             {
                 "name": "Delivery address",
                 "parent_id": cls.customer.id,
-                "delivery_time_preference": "fix_weekdays",
+                "delivery_time_preference": "time_windows",
                 "delivery_time_window_ids": [(0, 0, {
                     'start': 0.0,
                     'end': 23.59,

@@ -21,9 +21,9 @@ class TestSaleWeekdayDelivery(SavepointCase):
                 "parent_id": cls.customer.id,
                 "delivery_time_preference": "time_windows",
                 "delivery_time_window_ids": [(0, 0, {
-                    'start': 0.0,
-                    'end': 23.59,
-                    'weekday_ids': [
+                    'time_window_start': 0.0,
+                    'time_window_end': 23.59,
+                    'time_window_weekday_ids': [
                         (6, 0, [
                             cls.env.ref('base_time_window.time_weekday_thursday').id,
                             cls.env.ref('base_time_window.time_weekday_saturday').id

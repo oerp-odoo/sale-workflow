@@ -26,11 +26,11 @@ class ResPartner(models.Model):
                 [("name", "=", target_weekday)]
             )
             for win in windows:
-                if weekday not in win.weekday_ids:
+                if weekday not in win.time_window_weekday_ids:
                     continue
-                start_time = win.get_start_time()
+                start_time = win.get_time_window_start_time()
                 # As soon as now in in a window, return the start datetime
-                if start_time <= from_date.time() <= win.get_end_time():
+                if start_time <= from_date.time() <= win.get_time_window_end_time():
                     return from_date.replace(
                         hour=start_time.hour, minute=start_time.minute, second=0
                     ) + timedelta(days=i)

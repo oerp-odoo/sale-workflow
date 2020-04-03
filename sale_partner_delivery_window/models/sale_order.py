@@ -1,7 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl)
 from odoo import _, api, fields, models
-from odoo.addons.partner_tz.tools import tz_utils
+from odoo.tools.misc import format_datetime
 
 
 class SaleOrder(models.Model):
@@ -11,9 +11,9 @@ class SaleOrder(models.Model):
     @api.depends(
         "partner_shipping_id.delivery_time_preference",
         "partner_shipping_id.delivery_time_window_ids",
-        "partner_shipping_id.delivery_time_window_ids.start",
-        "partner_shipping_id.delivery_time_window_ids.end",
-        "partner_shipping_id.delivery_time_window_ids.weekday_ids",
+        "partner_shipping_id.delivery_time_window_ids.time_window_start",
+        "partner_shipping_id.delivery_time_window_ids.time_window_end",
+        "partner_shipping_id.delivery_time_window_ids.time_window_weekday_ids",
     )
     def _compute_expected_date(self):
         """Add dependencies to consider fixed weekdays delivery schedule"""
@@ -31,10 +31,6 @@ class SaleOrder(models.Model):
         ):
             ps = self.partner_shipping_id
             if not ps.is_in_delivery_window(self.commitment_date):
-                user_tz = self.env.user.tz
-                tz_commitment_date = tz_utils.utc_to_tz_naive_datetime(
-                    user_tz, self.commitment_date
-                )
                 return {
                     "warning": {
                         "title": _(
@@ -46,11 +42,10 @@ class SaleOrder(models.Model):
                             "partner is set to prefer deliveries on following "
                             "time windows:\n%s"
                             % (
-                                # TODO handle date format
-                                tz_commitment_date,
+                                format_datetime(self.env, self.commitment_date),
                                 '\n'.join(
                                     [
-                                        "  * %s" % w.tz_display_name
+                                        "  * %s" % w.display_name
                                         for w
                                         in ps.get_delivery_windows().get(ps.id)
                                     ]

@@ -3,7 +3,6 @@
 from freezegun import freeze_time
 
 from odoo import fields
-from odoo.exceptions import ValidationError
 from odoo.tests import SavepointCase
 
 
@@ -21,8 +20,8 @@ class TestSaleWeekdayDelivery(SavepointCase):
                 "parent_id": cls.customer.id,
                 "delivery_time_preference": "time_windows",
                 "delivery_time_window_ids": [(0, 0, {
-                    'time_window_start': 0.0,
-                    'time_window_end': 23.59,
+                    'time_window_start': 8.0,
+                    'time_window_end': 18.00,
                     'time_window_weekday_ids': [
                         (6, 0, [
                             cls.env.ref('base_time_window.time_weekday_thursday').id,
@@ -58,28 +57,18 @@ class TestSaleWeekdayDelivery(SavepointCase):
         order.order_line._onchange_product_id_set_customer_lead()
         return order
 
-    # TODO check overlap and empty
-    # def test_delivery_schedule_constraint(self):
-    #     with self.assertRaises(ValidationError):
-    #         self.customer_shipping.write(
-    #             {
-    #                 "delivery_schedule_thursday": False,
-    #                 "delivery_schedule_saturday": False,
-    #             }
-    #         )
-
     @freeze_time("2020-03-24")  # Tuesday
     def test_delivery_schedule_expected_date(self):
         order = self._create_order()
         # We're tuesday and next weekday for delivery is thursday
-        self.assertEqual(order.expected_date, fields.Datetime.to_datetime("2020-03-26"))
+        self.assertEqual(order.expected_date, fields.Datetime.to_datetime("2020-03-26 08:00:00"))
         # Ensure product customer lead time is considered
         # We're tuesday so + 3 days is friday, and next weekday for delivery
         #  is saturday 2020-03-28
         self.product.sale_delay = 3
         order_2 = self._create_order()
         self.assertEqual(
-            order_2.expected_date, fields.Datetime.to_datetime("2020-03-28")
+            order_2.expected_date, fields.Datetime.to_datetime("2020-03-28 08:00:00")
         )
         # Change the customer lead time directly on the line must also be
         #  considered
@@ -87,62 +76,78 @@ class TestSaleWeekdayDelivery(SavepointCase):
         #  is thursday 2020-04-02
         order_2.order_line.customer_lead = 5
         self.assertEqual(
-            order_2.expected_date, fields.Datetime.to_datetime("2020-04-02")
+            order_2.expected_date, fields.Datetime.to_datetime("2020-04-02 08:00:00")
         )
-
-    # def test_preferred_weekdays(self):
-    #     self.assertEqual(
-    #         self.customer_shipping.get_delivery_schedule_preferred_weekdays(),
-    #         ["thursday", "saturday"],
-    #     )
 
     @freeze_time("2020-03-24")  # Tuesday
     def test_onchange_warnings(self):
         # Test warning on sale.order
         order = self._create_order()
         # Set to friday
-        order.commitment_date = "2020-03-27"
+        order.commitment_date = "2020-03-27 08:00:00"
         onchange_res = order._onchange_commitment_date()
         self.assertTrue("warning" in onchange_res.keys())
         # Set to saturday (preferred)
-        order.commitment_date = "2020-03-28"
+        order.commitment_date = "2020-03-28 08:00:00"
         onchange_res = order._onchange_commitment_date()
         self.assertIsNone(onchange_res)
         # Test warning on stock.picking
         order.action_confirm()
         picking = order.picking_ids
         # Set to friday
-        picking.scheduled_date = "2020-03-27"
+        picking.scheduled_date = "2020-03-27 08:00:00"
         onchange_res = picking._onchange_scheduled_date()
         self.assertTrue("warning" in onchange_res.keys())
         # Set to saturday (preferred)
-        picking.scheduled_date = "2020-03-28"
+        picking.scheduled_date = "2020-03-28 08:00:00"
         onchange_res = picking._onchange_scheduled_date()
         self.assertIsNone(onchange_res)
 
-    @freeze_time("2020-03-24")  # Tuesday
+    @freeze_time("2020-03-24 01:00:00")  # Tuesday
     def test_prepare_procurement_values(self):
         # Without setting a commitment date, picking is scheduled for next
-        #  preferred weekday
+        #  preferred weekday start time
         order = self._create_order()
         order.action_confirm()
         picking = order.picking_ids
         self.assertEqual(
-            picking.scheduled_date, fields.Datetime.to_datetime("2020-03-26")
+            picking.scheduled_date, fields.Datetime.to_datetime("2020-03-26 08:00:00")
         )
+        # As long as we're not in a window, picking is scheduled for next
+        #  preferred weekday start time
+        with freeze_time("2020-03-24 09:00:00"):
+            order_2 = self._create_order()
+            order_2.action_confirm()
+            picking_2 = order_2.picking_ids
+            self.assertEqual(
+                picking_2.scheduled_date,
+                fields.Datetime.to_datetime("2020-03-26 08:00:00")
+            )
+        # If we're already in a window, picking is not postponed
+        with freeze_time("2020-03-26 12:00:00"):
+            order_3 = self._create_order()
+            order_3.action_confirm()
+            picking_3 = order_3.picking_ids
+            self.assertEqual(
+                picking_3.scheduled_date,
+                fields.Datetime.to_datetime("2020-03-26 12:00:00")
+            )
+
+    @freeze_time("2020-03-24 01:00:00")  # Tuesday
+    def test_prepare_procurement_values_commitment(self):
         # Using a commitment date on a preferred weekday is perfectly fine
+        order = self._create_order()
+        order.commitment_date = "2020-03-28 10:00:00"
+        order.action_confirm()
+        picking = order.picking_ids
+        self.assertEqual(
+            picking.scheduled_date, fields.Datetime.to_datetime("2020-03-28 10:00:00")
+        )
+        # Using a commitment date on an weekday not preferred is still allowed
         order_2 = self._create_order()
-        order_2.commitment_date = "2020-03-28"
+        order_2.commitment_date = "2020-03-30 06:00:00"
         order_2.action_confirm()
         picking_2 = order_2.picking_ids
         self.assertEqual(
-            picking_2.scheduled_date, fields.Datetime.to_datetime("2020-03-28")
-        )
-        # Using a commitment date on an weekday not preferred is still allowed
-        order_3 = self._create_order()
-        order_3.commitment_date = "2020-03-30"
-        order_3.action_confirm()
-        picking_3 = order_3.picking_ids
-        self.assertEqual(
-            picking_3.scheduled_date, fields.Datetime.to_datetime("2020-03-30")
+            picking_2.scheduled_date, fields.Datetime.to_datetime("2020-03-30 06:00:00")
         )

@@ -123,6 +123,22 @@ class TestSaleWeekdayDelivery(SavepointCase):
                 picking_2.scheduled_date,
                 fields.Datetime.to_datetime("2020-03-26 08:00:00")
             )
+        self.customer_shipping.delivery_time_window_ids.write(
+            {
+                "time_window_weekday_ids": [(6, 0, [
+                    self.env.ref('base_time_window.time_weekday_thursday').id
+                ])]
+            }
+        )
+        # If we're before a window, picking is to this window postponed
+        with freeze_time("2020-03-26 06:00:00"):
+            order_3 = self._create_order()
+            order_3.action_confirm()
+            picking_3 = order_3.picking_ids
+            self.assertEqual(
+                picking_3.scheduled_date,
+                fields.Datetime.to_datetime("2020-03-26 08:00:00")
+            )
         # If we're already in a window, picking is not postponed
         with freeze_time("2020-03-26 12:00:00"):
             order_3 = self._create_order()
@@ -131,6 +147,16 @@ class TestSaleWeekdayDelivery(SavepointCase):
             self.assertEqual(
                 picking_3.scheduled_date,
                 fields.Datetime.to_datetime("2020-03-26 12:00:00")
+            )
+        # If we're after delivery window on the only preferred weekday, picking
+        # is postponed to next week
+        with freeze_time("2020-03-26 20:00:00"):
+            order_3 = self._create_order()
+            order_3.action_confirm()
+            picking_3 = order_3.picking_ids
+            self.assertEqual(
+                picking_3.scheduled_date,
+                fields.Datetime.to_datetime("2020-04-02 08:00:00")
             )
 
     @freeze_time("2020-03-24 01:00:00")  # Tuesday

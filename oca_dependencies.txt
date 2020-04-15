@@ -1,2 +1,5 @@
+partner-contact
 product-attribute
+server-tools
 stock-logistics-warehouse
+stock-logistics-workflow

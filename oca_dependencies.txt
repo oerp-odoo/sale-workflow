@@ -1,3 +1,2 @@
 product-attribute
 stock-logistics-warehouse
-web https://github.com/sudhir-erpharbor/web 13.0-mig_web_action_conditionable

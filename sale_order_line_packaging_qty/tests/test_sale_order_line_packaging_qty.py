@@ -54,34 +54,74 @@ class TestSaleOrderLinePackagingQty(SavepointCase):
         order_line.write({"product_uom_qty": self.packaging.qty * 2})
         self.assertFalse(order_line._onchange_product_uom_qty())
 
-    # def test_auto_fill_packaging(self):
-    #     order = self.env["sale.order"].create({"partner_id": self.partner.id})
-    #     packaging_10 = self.env["product.packaging"].create(
-    #         {"name": "Test packaging 10", "product_id": self.product.id, "qty": 10.0}
-    #     )
-    #     order_line = self.env["sale.order.line"].create(
-    #         {
-    #             "order_id": order.id,
-    #             "product_id": self.product.id,
-    #             "product_uom": self.product.uom_id.id,
-    #         }
-    #     )
-    #     self.assertFalse(order_line.product_packaging)
-    #     self.assertFalse(order_line.product_packaging_qty)
-    #
-    #     order_line.write({"product_uom_qty": 3.0})
-    #     self.assertFalse(order_line.product_packaging)
-    #     self.assertFalse(order_line.product_packaging_qty)
-    #
-    #     self.product.write({"only_sell_by_pack": True})
-    #     self.assertFalse(order_line.product_packaging)
-    #     self.assertFalse(order_line.product_packaging_qty)
-    #
-    #     order_line.write({"product_uom_qty": self.packaging.qty * 2})
-    #     self.assertTrue(order_line.product_packaging)
-    #     self.assertTrue(order_line.product_packaging_qty)
-    #     self.assertEqual(order_line.product_packaging.name, "Test packaging")
-    #     self.assertTrue(order_line.product_packaging_qty, 2)
-    #
-    #     order_line.write({"product_uom_qty": self.packaging.qty * 2})
-    #     self.assertEqual(order_line.product_packaging.name, "Test packaging 10")
+    def test_write_auto_fill_packaging(self):
+        order = self.env["sale.order"].create({"partner_id": self.partner.id})
+        order_line = self.env["sale.order.line"].create(
+            {
+                "order_id": order.id,
+                "product_id": self.product.id,
+                "product_uom": self.product.uom_id.id,
+            }
+        )
+        self.assertFalse(order_line.product_packaging)
+        self.assertFalse(order_line.product_packaging_qty)
+
+        order_line.write({"product_uom_qty": 3.0})
+        self.assertFalse(order_line.product_packaging)
+        self.assertFalse(order_line.product_packaging_qty)
+
+        self.product.write({"only_sell_by_pack": True})
+        self.assertFalse(order_line.product_packaging)
+        self.assertFalse(order_line.product_packaging_qty)
+
+        order_line.write({"product_uom_qty": self.packaging.qty * 2})
+        self.assertTrue(order_line.product_packaging)
+        self.assertTrue(order_line.product_packaging_qty)
+        self.assertEqual(order_line.product_packaging.name, "Test packaging")
+        self.assertEqual(order_line.product_packaging_qty, 2)
+
+        packaging_10 = self.env["product.packaging"].create(
+            {"name": "Test packaging 10", "product_id": self.product.id, "qty": 15.0}
+        )
+        order_line.write({"product_packaging": False})
+        order_line.write({"product_uom_qty": packaging_10.qty * 2})
+        self.assertEqual(order_line.product_packaging.name, "Test packaging 10")
+
+    def test_create_auto_fill_packaging(self):
+        order = self.env["sale.order"].create({"partner_id": self.partner.id})
+        # only_sell_by_pack is default False
+        order_line_1 = self.env["sale.order.line"].create(
+            {
+                "order_id": order.id,
+                "product_id": self.product.id,
+                "product_uom": self.product.uom_id.id,
+                "product_uom_qty": self.packaging.qty * 2
+            }
+        )
+        self.assertFalse(order_line_1.product_packaging)
+        self.assertFalse(order_line_1.product_packaging_qty)
+
+        self.product.write({"only_sell_by_pack": True})
+        order_line_1 = self.env["sale.order.line"].create(
+            {
+                "order_id": order.id,
+                "product_id": self.product.id,
+                "product_uom": self.product.uom_id.id,
+                "product_uom_qty": self.packaging.qty * 2
+            }
+        )
+        self.assertTrue(order_line_1.product_packaging)
+        self.assertTrue(order_line_1.product_packaging_qty)
+        self.assertEqual(order_line_1.product_packaging.name, "Test packaging")
+        self.assertEqual(order_line_1.product_packaging_qty, 2)
+
+        order_line_2 = self.env["sale.order.line"].create(
+            {
+                "order_id": order.id,
+                "product_id": self.product.id,
+                "product_uom": self.product.uom_id.id,
+                "product_uom_qty": 2
+            }
+        )
+        self.assertFalse(order_line_2.product_packaging)
+        self.assertFalse(order_line_2.product_packaging_qty)

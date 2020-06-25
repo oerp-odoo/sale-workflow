@@ -129,30 +129,27 @@ class SaleOrderLine(models.Model):
     def write(self, vals):
         # Fill the packaging if they is empty and the quantity is a multiple
         for line in self:
+            product_uom_qty = vals.get("product_uom_qty")
+            product_packaging = vals.get("product_packaging")
             if line.product_id.only_sell_by_pack and (
-                not line.product_packaging
-                or ("product_packaging" in vals and not vals.get("product_packaging"))
+                not line.product_packaging or
+                ("product_packaging" in vals and not product_packaging)
             ):
-                pack_multiple = line.product_id._which_pack_multiple(
-                    self.product_uom_qty
-                )
+                pack_multiple = line.product_id._which_pack_multiple(product_uom_qty)
                 if pack_multiple:
                     vals.update({"product_packaging": pack_multiple.id})
-        print("vals : {}".format(vals))
         return super().write(vals)
 
     @api.model
     def create(self, vals):
 
         # Fill the packaging if they is empty and the quantity is a multiple
-        product = self.env["product.product"].browse(vals.get("product_id"))
+        product = self.env['product.product'].browse(vals.get('product_id'))
+        product_uom_qty = vals.get("product_uom_qty")
+        product_packaging = vals.get("product_packaging")
 
-        if (
-            product
-            and product.only_sell_by_pack
-            and ("product_packaging" in vals and not vals.get("product_packaging"))
-        ):
-            pack_multiple = product._which_pack_multiple(vals.get("product_uom_qty"))
+        if product and product.only_sell_by_pack and not product_packaging:
+            pack_multiple = product._which_pack_multiple(product_uom_qty)
             if pack_multiple:
                 vals.update({"product_packaging": pack_multiple.id})
         return super().create(vals)

@@ -9,9 +9,10 @@ class ProductProduct(models.Model):
     def _which_pack_multiple(self, qty):
         self.ensure_one()
         pack_multiple = False
-        for pack in self.packaging_ids.sorted("qty", reverse=True):
-            if pack.packaging_type_id.can_be_sold and pack.qty:
-                if (qty % pack.qty) == 0:
-                    pack_multiple = pack
-                    break
+        if qty:
+            for pack in self.packaging_ids.sorted('qty', reverse=True):
+                if pack.packaging_type_id.can_be_sold and pack.qty:
+                    if (qty % pack.qty) == 0:
+                        pack_multiple = pack
+                        break
         return pack_multiple

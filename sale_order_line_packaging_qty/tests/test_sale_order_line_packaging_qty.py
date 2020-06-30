@@ -42,7 +42,7 @@ class TestSaleOrderLinePackagingQty(SavepointCase):
         )
         self.assertFalse(order_line._onchange_product_uom_qty())
 
-        self.product.write({"only_sell_by_pack": True})
+        self.product.write({"sell_only_by_packaging": True})
         self.assertTrue(order_line._onchange_product_uom_qty())
 
         order_line.product_id_change()
@@ -70,7 +70,7 @@ class TestSaleOrderLinePackagingQty(SavepointCase):
         self.assertFalse(order_line.product_packaging)
         self.assertFalse(order_line.product_packaging_qty)
 
-        self.product.write({"only_sell_by_pack": True})
+        self.product.write({"sell_only_by_packaging": True})
         self.assertFalse(order_line.product_packaging)
         self.assertFalse(order_line.product_packaging_qty)
 
@@ -89,7 +89,7 @@ class TestSaleOrderLinePackagingQty(SavepointCase):
 
     def test_create_auto_fill_packaging(self):
         order = self.env["sale.order"].create({"partner_id": self.partner.id})
-        # only_sell_by_pack is default False
+        # sell_only_by_packaging is default False
         order_line_1 = self.env["sale.order.line"].create(
             {
                 "order_id": order.id,
@@ -101,7 +101,7 @@ class TestSaleOrderLinePackagingQty(SavepointCase):
         self.assertFalse(order_line_1.product_packaging)
         self.assertFalse(order_line_1.product_packaging_qty)
 
-        self.product.write({"only_sell_by_pack": True})
+        self.product.write({"sell_only_by_packaging": True})
         order_line_1 = self.env["sale.order.line"].create(
             {
                 "order_id": order.id,

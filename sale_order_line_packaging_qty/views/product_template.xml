@@ -8,8 +8,8 @@
         <field name="arch" type="xml">
             <div name="options" position="inside">
                 <div>
-                    <field name="only_sell_by_pack" />
-                    <label for="only_sell_by_pack" />
+                    <field name="sell_only_by_packaging" />
+                    <label for="sell_only_by_packaging" />
                 </div>
             </div>
         </field>

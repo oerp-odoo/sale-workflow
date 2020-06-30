@@ -6,4 +6,4 @@ from odoo import fields, models
 class ProductTemplate(models.Model):
     _inherit = "product.template"
 
-    only_sell_by_pack = fields.Boolean(string="Only sell by packaging", default=False,)
+    sell_only_by_packaging = fields.Boolean(string="Only sell by packaging", default=False,)

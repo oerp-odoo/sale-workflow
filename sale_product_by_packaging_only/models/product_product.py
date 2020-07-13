@@ -8,7 +8,7 @@ from odoo.tools import float_is_zero
 class ProductProduct(models.Model):
     _inherit = "product.product"
 
-    def _which_pack_multiple(self, qty):
+    def get_first_packaging_with_multiple_qty(self, qty):
         """ Return multiple of product packaging for one quantity if exist.
         """
         self.ensure_one()

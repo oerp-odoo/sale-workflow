@@ -46,7 +46,9 @@ class SaleOrderLine(models.Model):
         """
         # and we dont want to have this warning when we had the product
         if self.product_id.sell_only_by_packaging:
-            if not self._is_pack_multiple():
+            if not self._get_product_packaging_having_multiple_qty(
+                self.product_id, self.product_uom_qty, self.product_uom
+            ):
                 warning_msg = {
                     "title": _("Product quantity can not be packed"),
                     "message": _(
@@ -58,35 +60,73 @@ class SaleOrderLine(models.Model):
                 return {"warning": warning_msg}
         return {}
 
-    def _is_pack_multiple(self):
-        # TODO Consider UOM
-        return bool(self.product_id._which_pack_multiple(self.product_uom_qty))
+    def _get_product_packaging_having_multiple_qty(self, product, qty, uom):
+        if uom != product.uom_id:
+            qty = uom._compute_quantity(qty, product.uom_id)
+        return product.get_first_packaging_with_multiple_qty(qty)
 
     def write(self, vals):
-        # Fill the packaging if they are empty and the quantity is a multiple
+        """Auto assign packaging if needed"""
+        fields_to_check = ["product_id", "product_uom_qty", "product_uom"]
+        if vals.get("product_packaging") or not any(
+            fname in vals for fname in fields_to_check
+        ):
+            return super().write(vals)
         for line in self:
-            product_uom_qty = vals.get("product_uom_qty")
-            product_packaging = vals.get("product_packaging")
-            if line.product_id.sell_only_by_packaging and (
-                not line.product_packaging
-                or ("product_packaging" in vals and not product_packaging)
-            ):
-                pack_multiple = line.product_id._which_pack_multiple(product_uom_qty)
-                if pack_multiple:
-                    vals.update({"product_packaging": pack_multiple.id})
-        return super().write(vals)
+            line_vals = vals.copy()
+            line_vals.update(self._write_auto_assign_packaging(line_vals))
+            super(SaleOrderLine, line).write(line_vals)
+        return True
+
+    def _write_auto_assign_packaging(self, vals):
+        self.ensure_one()
+        product = (
+            self.env["product.product"].browse(vals["product_id"])
+            if "product_id" in vals
+            else self.product_id
+        )
+        if product and product.sell_only_by_packaging:
+            quantity = (
+                vals["product_uom_qty"]
+                if "product_uom_qty" in vals
+                else self.product_uom_qty
+            )
+            uom = (
+                self.env["uom.uom"].browse(vals["product_uom"])
+                if "product_uom" in vals
+                else self.product_uom
+            )
+            packaging = self._get_product_packaging_having_multiple_qty(
+                product, quantity, uom
+            )
+            if packaging:
+                return {"product_packaging": packaging.id}
+            # No need to raise an error here if no packaging has been found
+            #  since the error on _check_product_packaging will be raised
+        return {}
 
     @api.model
     def create(self, vals):
-
+        """Auto assign packaging if needed"""
         # Fill the packaging if they are empty and the quantity is a multiple
-        product = self.env["product.product"].browse(vals.get("product_id"))
-        product_uom_qty = vals.get("product_uom_qty")
-        # TODO Consider UOM
-        product_packaging = vals.get("product_packaging")
-
-        if product and product.sell_only_by_packaging and not product_packaging:
-            pack_multiple = product._which_pack_multiple(product_uom_qty)
-            if pack_multiple:
-                vals.update({"product_packaging": pack_multiple.id})
+        vals.update(self._create_auto_assign_packaging(vals))
         return super().create(vals)
+
+    @api.model
+    def _create_auto_assign_packaging(self, vals):
+        product = (
+            self.env["product.product"].browse(vals["product_id"])
+            if "product_id" in vals
+            else False
+        )
+        if product and product.sell_only_by_packaging:
+            quantity = vals.get("product_uom_qty")
+            uom = self.env["uom.uom"].browse(vals.get("product_uom"))
+            packaging = self._get_product_packaging_having_multiple_qty(
+                product, quantity, uom
+            )
+            if packaging:
+                return {"product_packaging": packaging.id}
+            # No need to raise an error here if no packaging has been found
+            #  since the error on _check_product_packaging will be raised
+        return {}

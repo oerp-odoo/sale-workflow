@@ -12,7 +12,7 @@ class SaleOrderLine(models.Model):
         self.ensure_one()
         return self.product_packaging and not self.product_packaging.can_be_sold
 
-    @api.constrains("product_packaging", "product_packaging.can_be_sold")
+    @api.constrains("product_packaging")
     def _check_product_packaging_can_be_sold(self):
         for line in self:
             if line._can_be_sold_error_condition():
@@ -38,9 +38,7 @@ class SaleOrderLine(models.Model):
             }
         return super()._onchange_product_packaging()
 
-    @api.constrains(
-        "product_id", "product_packaging", "product_id.sell_only_by_packaging"
-    )
+    @api.constrains("product_id", "product_packaging")
     def _check_product_packaging_sell_only_by_packaging(self):
         for line in self:
             if line.product_id.sell_only_by_packaging and not line.product_packaging:

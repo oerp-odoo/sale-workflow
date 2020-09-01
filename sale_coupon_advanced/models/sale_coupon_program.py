@@ -1,6 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
-from odoo import _, api, exceptions, fields, models
+
+from odoo import _, api, fields, models
 
 
 class SaleCouponProgram(models.Model):
@@ -20,6 +21,41 @@ class SaleCouponProgram(models.Model):
         string="Apply only on the next ",
         default=0,
     )
+    is_reward_product_forced = fields.Boolean(
+        string="Unordered product",
+        default=False,
+        help="If checked, the reward product will be added if not ordered.",
+    )
+
+    def _check_promo_code(self, order, coupon_code):
+        """ Do not return product unordered error message if
+            `is_reward_product_forced` is selected
+        """
+        message = _(
+            "The reward products should be in the sales order lines to"
+            " apply the discount."
+        )
+        res = super()._check_promo_code(order, coupon_code)
+        if res.get("error") == message and self.is_reward_product_forced:
+            return {}
+        return res
+
+    @api.model
+    def _filter_programs_from_common_rules(self, order, next_order=False):
+        """ Return the programs when `is_reward_product_forced` is selected
+            and reward product not already ordered
+        """
+        programs = self.browse(self.ids)
+        res = super()._filter_programs_from_common_rules(order, next_order)
+        for program in programs:
+            if (
+                program.reward_type == "product"
+                and program.is_reward_product_forced
+                and not order._is_reward_in_order_lines(program)
+            ):
+                res |= program
+        return res
+
 
     @api.constrains("first_n_customer_orders")
     def _constrains_first_n_orders_positive(self):
@@ -99,3 +135,4 @@ class SaleCoupon(models.Model):
     reward_pricelist_id = fields.Many2one(
         related="program_id.reward_pricelist_id", string="Pricelist"
     )
+    

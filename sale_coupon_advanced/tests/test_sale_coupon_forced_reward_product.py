@@ -50,6 +50,7 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
         """
             Testing `_filter_programs_from_common_rules`
         """
+        # TODO adapt the test
         programs = self.program_forced._filter_programs_from_common_rules(
             self.order_forced
         )

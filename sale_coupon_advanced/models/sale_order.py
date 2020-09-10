@@ -11,7 +11,6 @@ class SaleOrder(models.Model):
             product
         """
         reward_product = program.reward_product_id
-        # discount_product = program.discount_line_product_id
         taxes = reward_product.taxes_id
         if self.fiscal_position_id:
             taxes = self.fiscal_position_id.map_tax(taxes)
@@ -31,6 +30,7 @@ class SaleOrder(models.Model):
             }
         )
         sol.product_id_change()
+        return sol
 
     def _get_applicable_no_code_promo_program(self):
         programs = super()._get_applicable_no_code_promo_program()

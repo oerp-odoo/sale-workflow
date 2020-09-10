@@ -53,14 +53,18 @@ class SaleCouponProgram(models.Model):
 
     @api.model
     def _filter_programs_from_common_rules(self, order, next_order=False):
-        # Return the programs when `is_reward_product_forced` is selected
-        # and reward product not already ordered
 
         initial_programs = self.browse(self.ids)
-        # TODO there is inconsistency in order of programs which program
-        # should run first?
+        self._force_sale_order_lines(initial_programs, order)
+        programs = super()._filter_programs_from_common_rules(order, next_order)
+        programs = programs._filter_first_order_programs(order)
+        programs = programs._filter_n_first_order_programs(order)
+        return programs
 
-        for program in initial_programs:
+    def _force_sale_order_lines(self, programs, order):
+        """ Return the programs when `is_reward_product_forced` is selected
+         and reward product not already ordered"""
+        for program in programs:
             if (
                 program.reward_type == "product"
                 and program.is_reward_product_forced
@@ -68,11 +72,10 @@ class SaleCouponProgram(models.Model):
             ):
                 order.add_reward_line_values(program)
 
-        programs = super()._filter_programs_from_common_rules(order, next_order)
-        programs = programs._filter_first_order_programs(order)
-        programs = programs._filter_n_first_order_programs(order)
-
-        return programs
+    def _remove_invalid_reward_lines(self):
+        # TODO rollback forced lines which is not used for creation of reward
+        # lines for other programs
+        return super._remove_invalid_reward_lines()
 
     @api.constrains("first_n_customer_orders")
     def _constrains_first_n_orders_positive(self):

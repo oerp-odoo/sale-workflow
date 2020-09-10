@@ -1,7 +1,7 @@
 # Copyright 2020 Camptocamp SA
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl).
 
-from odoo import _, api, fields, models
+from odoo import _, api, exceptions, fields, models
 
 
 class SaleCouponProgram(models.Model):
@@ -28,9 +28,20 @@ class SaleCouponProgram(models.Model):
     )
 
     def _check_promo_code(self, order, coupon_code):
-        """ Do not return product unordered error message if
-            `is_reward_product_forced` is selected
-        """
+
+        order_count = self._get_order_count(order)
+        if self.first_order_only and order_count:
+            return {"error": _("Coupon can be used only for the first sale order!")}
+        max_order_number = self.first_n_customer_orders
+        if max_order_number and order_count >= max_order_number:
+            return {
+                "error": _(
+                    "Coupon can be used only for the first {} sale order!"
+                ).format(max_order_number)
+            }
+
+        # Do not return product unordered error message if
+        # `is_reward_product_forced` is selected
         message = _(
             "The reward products should be in the sales order lines to"
             " apply the discount."
@@ -42,20 +53,26 @@ class SaleCouponProgram(models.Model):
 
     @api.model
     def _filter_programs_from_common_rules(self, order, next_order=False):
-        """ Return the programs when `is_reward_product_forced` is selected
-            and reward product not already ordered
-        """
-        programs = self.browse(self.ids)
-        res = super()._filter_programs_from_common_rules(order, next_order)
-        for program in programs:
+        # Return the programs when `is_reward_product_forced` is selected
+        # and reward product not already ordered
+
+        initial_programs = self.browse(self.ids)
+        # TODO there is inconsistency in order of programs which program
+        # should run first?
+
+        for program in initial_programs:
             if (
                 program.reward_type == "product"
                 and program.is_reward_product_forced
                 and not order._is_reward_in_order_lines(program)
             ):
-                res |= program
-        return res
+                order.add_reward_line_values(program)
 
+        programs = super()._filter_programs_from_common_rules(order, next_order)
+        programs = programs._filter_first_order_programs(order)
+        programs = programs._filter_n_first_order_programs(order)
+
+        return programs
 
     @api.constrains("first_n_customer_orders")
     def _constrains_first_n_orders_positive(self):
@@ -73,19 +90,6 @@ class SaleCouponProgram(models.Model):
                 ("id", "!=", order.id),
             ]
         )
-
-    def _check_promo_code(self, order, coupon_code):
-        order_count = self._get_order_count(order)
-        if self.first_order_only and order_count:
-            return {"error": _("Coupon can be used only for the first sale order!")}
-        max_order_number = self.first_n_customer_orders
-        if max_order_number and order_count >= max_order_number:
-            return {
-                "error": _(
-                    "Coupon can be used only for the first {} sale order!"
-                ).format(max_order_number)
-            }
-        return super()._check_promo_code(order, coupon_code)
 
     def _filter_first_order_programs(self, order):
         """
@@ -112,16 +116,6 @@ class SaleCouponProgram(models.Model):
             filtered_programs |= program
         return filtered_programs
 
-    @api.model
-    def _filter_programs_from_common_rules(self, order, next_order=False):
-        """ Return the programs if every conditions is met
-            :param bool next_order: is the reward given from a previous order
-        """
-        programs = super()._filter_programs_from_common_rules(order, next_order)
-        programs = programs._filter_first_order_programs(order)
-        programs = programs._filter_n_first_order_programs(order)
-        return programs
-
 
 class SaleCouponReward(models.Model):
     _inherit = "sale.coupon.reward"
@@ -135,4 +129,3 @@ class SaleCoupon(models.Model):
     reward_pricelist_id = fields.Many2one(
         related="program_id.reward_pricelist_id", string="Pricelist"
     )
-    

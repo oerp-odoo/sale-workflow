@@ -60,7 +60,7 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
             "return the program for the forced reward product",
         )
 
-    def test_02_get_reward_line_values__result(self):
+    def _test_02_get_reward_line_values__result(self):
         """
             Testing `sale_order._get_reward_line_values` strict formalism return
 

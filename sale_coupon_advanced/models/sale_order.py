@@ -6,59 +6,31 @@ from odoo import _, models
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
-    def _get_reward_line_values(self, program):
+    def add_reward_line_values(self, program):
         """ Add the rewarded product if a reward line has been found for this
             product
         """
-        reward_values = super()._get_reward_line_values(program)
         reward_product = program.reward_product_id
-        discount_product = program.discount_line_product_id
-        for reward_value in reward_values:
-            product_id = reward_value["product_id"]
-            is_reward = reward_value["is_reward_line"]
-            if product_id == discount_product.id and is_reward:
-                taxes = reward_product.taxes_id
-                if self.fiscal_position_id:
-                    taxes = self.fiscal_position_id.map_tax(taxes)
-                reward_values += [
-                    {
-                        "sequence": 998,  # Put this line before discount
-                        "name": reward_product.name,
-                        "product_id": reward_product.id,
-                        "price_unit": reward_product.lst_price,
-                        "is_reward_line": False,
-                        "product_uom_qty": program.reward_product_quantity,
-                        "product_uom": reward_product.uom_id.id,
-                        "tax_id": [(4, tax.id, False) for tax in taxes],
-                    }
-                ]
-        return reward_values
-
-    def _get_reward_values_product(self, program):
-        """ Send a free product when
-            `sale_coupon_program.is_reward_product_forced` is selected
-            and reward product not already ordered
-            (added later in _get_reward_line_values)
-        """
-        already_applied_program = self._is_reward_in_order_lines(program)
-        if not program.is_reward_product_forced or already_applied_program:
-            return super()._get_reward_values_product(program)
-
-        discount_product = program.discount_line_product_id
-        reward_product = program.reward_product_id
+        # discount_product = program.discount_line_product_id
         taxes = reward_product.taxes_id
         if self.fiscal_position_id:
             taxes = self.fiscal_position_id.map_tax(taxes)
-        return {
-            "sequence": 999,  # Put this line at the bottom
-            "name": _("Free Product") + " - " + reward_product.name,
-            "product_id": discount_product.id,
-            "price_unit": -reward_product.lst_price,
-            "is_reward_line": True,
-            "product_uom_qty": program.reward_product_quantity,
-            "product_uom": reward_product.uom_id.id,
-            "tax_id": [(4, tax.id, False) for tax in taxes],
-        }
+        sequence = (max(self.mapped("order_line.sequence"))) + 1
+        sol = self.order_line.create(
+            {
+                "sequence": sequence,
+                "name": reward_product.name,
+                "product_id": reward_product.id,
+                "price_unit": reward_product.lst_price,
+                "is_reward_line": False,
+                "forced_reward_line": True,
+                "product_uom_qty": program.reward_product_quantity,
+                "product_uom": reward_product.uom_id.id,
+                "tax_id": [(4, tax.id, False) for tax in taxes],
+                "order_id": self.id,
+            }
+        )
+        sol.product_id_change()
 
     def _get_applicable_no_code_promo_program(self):
         programs = super()._get_applicable_no_code_promo_program()

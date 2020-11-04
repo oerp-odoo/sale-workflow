@@ -28,4 +28,7 @@ class SaleCouponApplyCode(models.TransientModel):
             )
             if coupon and coupon.reward_pricelist_id:
                 order._update_pricelist(coupon.reward_pricelist_id)
+        # Clean up potential incorrectly forced lines.
+        sales_order = self.env["sale.order"].browse(self.env.context.get("active_id"))
+        sales_order._remove_invalid_forced_lines()
         return error_status

@@ -159,3 +159,51 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
         )
         order.write({"order_line": [(2, reward_line.id), (6, 0, lines_code_6.ids)]})
         self._test_auto_removed_discount(order, self.product_A, self.program_forced)
+
+    def test_04_order_line_forced_reward_result(self):
+        """Apply forced rewards with coupon code.
+
+        Case 1: apply using code.
+        Case 2: check if its not applied when recomputing promotions.
+        """
+        # Case 1.
+        # Disable automatic promotion.
+        self.program_forced.active = False
+        program_product_1 = self.env["sale.coupon.program"].create(
+            {
+                "name": "Buy anything, B is free",
+                "promo_code_usage": "code_needed",
+                "promo_code": "MYPROMO1",
+                "reward_type": "product",
+                "reward_product_id": self.product_B.id,
+                "rule_products_domain": "[('sale_ok', '=', True)]",
+                "is_reward_product_forced": True,
+                "active": True,
+                "sequence": 1,
+            }
+        )
+        # Add extra promotion, to make sure it is not applied when not
+        # needed.
+        program_product_1.copy(
+            default={
+                "name": "Buy anything, C is free",
+                "promo_code": "MYPROMO2",
+                "reward_product_id": self.product_C.id,
+            }
+        )
+        amount_total = self.order_forced.amount_total
+        wizard = (
+            self.env["sale.coupon.apply.code"]
+            .with_context(active_id=self.order_forced.id)
+            .create({"coupon_code": "MYPROMO1"})
+        )
+        wizard.process_coupon()
+        # Existing line, plus free product with its discount line.
+        self.assertEqual(len(self.order_forced.order_line), 3)
+        # Total amount must not change, extra product is nullified by
+        # discount line.
+        self.assertEqual(self.order_forced.amount_total, amount_total)
+        # Case 2.
+        self.order_forced.order_line.unlink()
+        self.order_forced.recompute_coupon_lines()
+        self.assertFalse(self.order_forced.order_line)

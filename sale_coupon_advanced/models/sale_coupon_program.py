@@ -58,6 +58,9 @@ class SaleCouponProgram(models.Model):
     @api.model
     def _filter_programs_from_common_rules(self, order, next_order=False):
         initial_programs = self.browse(self.ids)
+        # FIXME: this is bad design. _filter_programs_from_common_rules
+        # supposed to just filter programs, but it has side effect,
+        # where it can also add order lines.
         self._force_sale_order_lines(initial_programs, order)
         programs = super()._filter_programs_from_common_rules(order, next_order)
         programs = programs._filter_first_order_programs(order)
@@ -66,6 +69,8 @@ class SaleCouponProgram(models.Model):
         )
         return programs
 
+    # TODO: method docstring does not make sense. It does not do
+    # anything what is described.
     def _force_sale_order_lines(self, programs, order):
         """Return the programs when `is_reward_product_forced` is selected
         and reward product not already ordered"""

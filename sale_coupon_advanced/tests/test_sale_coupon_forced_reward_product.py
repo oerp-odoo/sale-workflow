@@ -34,7 +34,10 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
 
         self.program_forced = self.env["sale.coupon.program"].create(
             {
-                "name": "Buy anything, B are free",
+                "name": "Promotion Buy anything, B is free",
+                # Must specify program_type, because it does not set
+                # it on default and just set False value.
+                "program_type": "promotion_program",
                 "promo_code_usage": "no_code_needed",
                 "reward_type": "product",
                 "reward_product_id": self.product_B.id,
@@ -60,17 +63,20 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
         self.assertNotIn(program, order.code_promo_program_id)
         self.assertNotIn(program, order.no_code_promo_program_ids)
 
-    def test_01_filter_programs_from_common_rules_result(self):
-        """Check `_filter_programs_from_common_rules`."""
-        # TODO adapt the test
-        programs = self.program_forced._filter_programs_from_common_rules(
-            self.order_forced
-        )
-        self.assertIn(
-            self.program_forced.id,
-            programs.ids,
-            "`sale_coupon_program._filter_programs_from_common_rules` should "
-            "return the program for the forced reward product",
+    def _test_forced_reward_product_lines_pair(self, order, program):
+        forced_line = order.order_line.filtered("forced_reward_line")
+        self.assertEqual(len(forced_line), 1)
+        self.assertEqual(forced_line.product_id, program.reward_product_id)
+        reward_line = order.order_line.filtered("is_reward_line")
+        self.assertEqual(len(reward_line), 1)
+        self.assertEqual(reward_line.product_id, program.discount_line_product_id)
+
+    def test_01_create_reward_line_forced(self):
+        """Check if forced reward with counter lines are created."""
+        self.order_forced._create_reward_line(self.program_forced)
+        self.assertEqual(len(self.order_forced.order_line), 3)
+        self._test_forced_reward_product_lines_pair(
+            self.order_forced, self.program_forced
         )
 
     def test_02_order_line_forced_reward_result(self):
@@ -164,14 +170,19 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
         """Apply forced rewards with coupon code.
 
         Case 1: apply using code.
-        Case 2: check if its not applied when recomputing promotions.
+        Case 2: check if its not applied when recomputing promotions (
+            promo inactive).
+        Case 3: check if auto promotion applied, but not ones with code,
+            when recomputing promotions (promo active).
+
+
         """
-        # Case 1.
-        # Disable automatic promotion.
         self.program_forced.active = False
+        # Case 1.
         program_product_1 = self.env["sale.coupon.program"].create(
             {
-                "name": "Buy anything, B is free",
+                "name": "Coupon buy anything, B is free",
+                "program_type": "promotion_program",
                 "promo_code_usage": "code_needed",
                 "promo_code": "MYPROMO1",
                 "reward_type": "product",
@@ -203,7 +214,28 @@ class TestSaleCouponForcedRewardProduct(TestSaleCouponCommon):
         # Total amount must not change, extra product is nullified by
         # discount line.
         self.assertEqual(self.order_forced.amount_total, amount_total)
+        self._test_forced_reward_product_lines_pair(
+            self.order_forced, program_product_1
+        )
         # Case 2.
         self.order_forced.order_line.unlink()
         self.order_forced.recompute_coupon_lines()
         self.assertFalse(self.order_forced.order_line)
+        # Case 3.
+        self.order_forced.order_line = [
+            (
+                0,
+                False,
+                {
+                    "product_id": self.product_A.id,
+                    "name": "1 Product A",
+                    "product_uom": self.uom_unit.id,
+                    "product_uom_qty": 2.0,
+                },
+            )
+        ]
+        self.program_forced.active = True
+        self.order_forced.recompute_coupon_lines()
+        self._test_forced_reward_product_lines_pair(
+            self.order_forced, self.program_forced
+        )

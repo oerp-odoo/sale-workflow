@@ -17,14 +17,30 @@ class SaleOrder(models.Model):
         except ValueError:
             return seq
 
-    def add_reward_line_values(self, program):
-        """Add the rewarded product if a reward line has been found for this
-        product
+    def _create_reward_line(self, program):
+        self._filter_force_create_counter_line_for_reward_product(program)
+        super()._create_reward_line(program)
+
+    def _filter_force_create_counter_line_for_reward_product(
+        self, program, predicate=None
+    ):
+        """Create counter line if its needed for program."""
+        # NOTE. Not passing coupon_code, because from this call we dont
+        # have it, but its not needed either (so will just default to
+        # None).
+        if program._check_promo_code_forced(self, predicate=predicate):
+            self._create_counter_line_for_reward_product(program)
+
+    def _create_counter_line_for_reward_product(self, program):
+        """Create force line to counter balance discount line.
+
+        This line must exist before actual discount/reward line is
+        created.
+        Because forced program can skip _check_promo_code, we need to
+        add counter line automatically as standard functionality expects
+        such line (standard functionality expects you to create this
+        line manually only).
         """
-        # NOTE. This method dosctring is misleading, it says, it adds
-        # rewarded product if there is reward line found, but it
-        # actually does not check any reward line, instead it adds
-        # before any reward line is added.
         reward_product = program.reward_product_id
         taxes = reward_product.taxes_id
         if self.fiscal_position_id:
@@ -116,40 +132,10 @@ class SaleOrder(models.Model):
                 self.write({"order_line": [(0, False, values)]})
 
     def _remove_invalid_reward_lines(self):
-        # TODO: rollback forced lines which is not used for creation of
-        # reward lines for other programs
         super()._remove_invalid_reward_lines()
-        self._remove_invalid_forced_lines()
         new_sale_order = self.new({"partner_id": self.partner_id})
         new_sale_order.onchange_partner_id()
         self._update_pricelist(new_sale_order.pricelist_id)
-
-    def _remove_invalid_forced_lines(self):
-        # NOTE. This is a redundant bandage fix. Such lines should not
-        # appear on SO in a first place, but because existing
-        # functionality is interlined so much, its now hard to properly
-        # change it without breaking other things.
-        def has_related_reward_lines(product_forced):
-            discount_products = SaleCouponProgram.search(
-                [
-                    ("reward_type", "=", "product"),
-                    ("reward_product_id", "=", product_forced.id),
-                    ("is_reward_product_forced", "=", True),
-                ]
-            ).mapped("discount_line_product_id")
-            order_products = self.order_line.mapped("product_id")
-            # Find if related discount product is also on same order.
-            return any(p for p in discount_products if p in order_products)
-
-        SaleCouponProgram = self.env["sale.coupon.program"]
-        lines_to_remove = self.env["sale.order.line"]
-        for line in self.order_line.filtered("forced_reward_line"):
-            if not has_related_reward_lines(line.product_id):
-                lines_to_remove |= line
-        # Flag to know if anything was removed.
-        removed = bool(lines_to_remove)
-        lines_to_remove.unlink()
-        return removed
 
     def _update_pricelist(self, pricelist):
         self.pricelist_id = pricelist

@@ -28,8 +28,8 @@ class SaleCouponProgram(models.Model):
     )
 
     next_n_customer_orders = fields.Integer(
-        help="Maximum number of sales orders of the customer in which reward \
-         can be provided",
+        help="Maximum number of sales orders of the customer in which reward "
+             "can be provided",
         string="Apply only on the next ",
         default=0,
     )
@@ -60,14 +60,18 @@ class SaleCouponProgram(models.Model):
 
     def _check_promo_code(self, order, coupon_code):
         if self.first_order_only and not order.first_order():
-            return {"error": _("Coupon can be used only for the first sale order!")}
+            return {
+                "error":
+                    _("This code can be used only for the first sale order!")
+            }
         order_count = self._get_order_count(order)
         max_order_number = self.next_n_customer_orders
         if max_order_number and order_count >= max_order_number:
             return {
-                "error": _("Coupon can be used only for the {} times!").format(
-                    max_order_number
-                )
+                "error":
+                    _("This code can be used only for the {} times!").format(
+                        max_order_number
+                    )
             }
         res = super()._check_promo_code(order, coupon_code)
         if res.get("error") and self._check_promo_code_forced(
